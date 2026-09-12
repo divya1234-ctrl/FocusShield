@@ -205,17 +205,17 @@ export const MobilePhoneSimulator: React.FC<MobilePhoneSimulatorProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-6">
+    <div className="w-full max-w-full flex flex-col items-center justify-center py-2 sm:py-6 px-1">
       {/* Device Frame */}
-      <div className="relative w-[360px] sm:w-[380px] h-[740px] bg-slate-950 rounded-[48px] p-3.5 shadow-2xl border-4 border-slate-700 ring-1 ring-slate-800 flex flex-col justify-between overflow-hidden">
+      <div className="relative w-full max-w-[335px] xs:max-w-[350px] sm:max-w-[380px] h-[640px] sm:h-[740px] max-h-[88vh] bg-slate-950 rounded-[32px] sm:rounded-[48px] p-2 sm:p-3.5 shadow-2xl border-2 sm:border-4 border-slate-700 ring-1 ring-slate-800 flex flex-col justify-between overflow-hidden mx-auto">
         {/* Dynamic Island / Speaker */}
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-30 flex items-center justify-between px-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-800" />
-          <div className="w-2 h-2 rounded-full bg-indigo-950" />
+        <div className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-24 sm:w-28 h-4 sm:h-5 bg-black rounded-full z-30 flex items-center justify-between px-2.5 sm:px-3">
+          <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-slate-800" />
+          <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-indigo-950" />
         </div>
 
         {/* Status Bar */}
-        <div className="h-6 flex items-center justify-between px-6 pt-1 text-[11px] font-mono text-slate-300 z-20">
+        <div className="h-6 flex items-center justify-between px-4 sm:px-6 pt-1 text-[10px] sm:text-[11px] font-mono text-slate-300 z-20">
           <span>9:41</span>
           <div className="flex items-center space-x-1.5">
             <Wifi className="w-3 h-3" />
@@ -224,7 +224,7 @@ export const MobilePhoneSimulator: React.FC<MobilePhoneSimulatorProps> = ({
         </div>
 
         {/* Screen Area */}
-        <div className="flex-1 bg-slate-900 rounded-[36px] overflow-hidden flex flex-col relative text-slate-100 mt-1">
+        <div className="flex-1 bg-slate-900 rounded-[24px] sm:rounded-[36px] overflow-hidden flex flex-col relative text-slate-100 mt-1">
           {/* SCREEN: YOUTUBE APP WITH FOCUS SHIELD */}
           {activeScreen === 'youtube' && (
             isYouTubeDeactivated ? (

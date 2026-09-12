@@ -1082,13 +1082,13 @@ All test assertions verified successfully!`;
       {/* 0. LIVE YOUTUBE SCREEN TIME QUOTA & EXTERNAL ENFORCER BAR */}
       {youtubeApp && (
         <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 flex-1">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isDailyLimitExceeded ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-slate-800 text-indigo-400 border border-slate-700'}`}>
               <Clock className="w-4 h-4" />
             </div>
-            <div className="space-y-1 min-w-[200px]">
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-white text-xs">Daily YouTube Allowance:</span>
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center space-x-2 flex-wrap gap-y-0.5">
+                <span className="font-bold text-white text-xs truncate">Daily YouTube Allowance:</span>
                 <span className="font-mono text-xs font-semibold text-slate-200">
                   {youtubeApp.usedTodayMinutes}m / {youtubeApp.dailyLimitMinutes}m
                 </span>
@@ -1099,7 +1099,7 @@ All test assertions verified successfully!`;
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-40 sm:w-56 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-28 xs:w-36 sm:w-56 h-1.5 bg-slate-800 rounded-full overflow-hidden shrink-0">
                   <div
                     className={`h-full transition-all duration-300 ${
                       isDailyLimitExceeded
@@ -1111,7 +1111,7 @@ All test assertions verified successfully!`;
                     style={{ width: `${Math.min(100, Math.round((youtubeApp.usedTodayMinutes / youtubeApp.dailyLimitMinutes) * 100))}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">
+                <span className="text-[10px] text-slate-400 font-mono truncate">
                   {isDailyLimitExceeded
                     ? `Over by +${youtubeApp.usedTodayMinutes - youtubeApp.dailyLimitMinutes}m`
                     : `${Math.max(0, youtubeApp.dailyLimitMinutes - youtubeApp.usedTodayMinutes)}m left`}

@@ -1,6 +1,6 @@
 {
   "name": "FocusShield - Mobile History & Intent-Locked YouTube Study Mode",
-  "description": "Track mobile screen time history, disable distracting apps, and enforce natural-language intent lockdown (such as DSA-only YouTube filtering for a timed focus session).",
+  "description": "Agentic AI study-execution system with dynamic action selection, automated planning, real-time distraction control, multi-step execution, failure recovery, and adaptive learning evaluation.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

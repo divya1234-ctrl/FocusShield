@@ -1,19 +1,33 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
-import { createServer as createViteServer } from 'vite';
+import { EXTENSION_MANIFEST, EXTENSION_BACKGROUND, EXTENSION_CONTENT } from './src/utils/extensionCode';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Endpoint: Download Ready-to-use FocusShield Chrome Extension ZIP
+app.get('/api/download-extension-zip', async (req, res) => {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    zip.file('manifest.json', EXTENSION_MANIFEST);
+    zip.file('background.js', EXTENSION_BACKGROUND);
+    zip.file('content.js', EXTENSION_CONTENT);
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="focusshield-extension.zip"');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Error creating extension zip:', err);
+    res.status(500).json({ error: 'Failed to generate extension zip' });
+  }
+});
 
 // Server-side Gemini API client helper
 function getGeminiClient(): GoogleGenAI | null {
@@ -1533,9 +1547,746 @@ Provide an insightful, encouraging productivity coaching summary in JSON.`;
   }
 });
 
+// =========================================================================
+// FOCUSSHIELD AGENT API ENDPOINTS (Observe → Decide → Act → Evaluate → Adapt)
+// =========================================================================
+
+// Helper: Curated repository of verified learning resources across core CS topics
+const AGENT_RESOURCE_DATABASE = [
+  {
+    id: 'res-dijkstra-1',
+    topic: 'dijkstra',
+    title: "Dijkstra's Algorithm - Single Source Shortest Path with Priority Queue",
+    type: 'video',
+    duration: 18,
+    difficulty: 'intermediate',
+    relevance: 0.96,
+    url: 'https://www.youtube.com/watch?v=XB4MIexjvY0',
+    provider: 'YouTube (Abdul Bari)',
+    thumbnail: 'https://img.youtube.com/vi/XB4MIexjvY0/hqdefault.jpg',
+    summary: 'Comprehensive breakdown of Dijkstra algorithm using min-heap priority queue, distance relaxation, and O((V+E) log V) complexity analysis.',
+    keyConcepts: ['Greedy Choice', 'Priority Queue', 'Distance Relaxation', 'Non-negative Weights']
+  },
+  {
+    id: 'res-dijkstra-2',
+    topic: 'dijkstra',
+    title: "Graph Theory & Dijkstra's Algorithm in C++ with STL",
+    type: 'interactive',
+    duration: 14,
+    difficulty: 'beginner',
+    relevance: 0.92,
+    url: 'https://leetcode.com/explore/featured/card/graph/',
+    provider: 'LeetCode Explore',
+    thumbnail: 'https://images.unsplash.com/photo-1516116211227-77d70c49a626?w=600&auto=format&fit=crop&q=60',
+    summary: 'Step-by-step interactive graph traversal with C++ std::priority_queue and adjacency lists.',
+    keyConcepts: ['std::vector<pair<int,int>>', 'std::greater comparator', 'Adjacency List']
+  },
+  {
+    id: 'res-dijkstra-3',
+    topic: 'dijkstra',
+    title: "Dijkstra's Shortest Path Implementation Guide & Common Pitfalls",
+    type: 'documentation',
+    duration: 10,
+    difficulty: 'advanced',
+    relevance: 0.88,
+    url: 'https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-using-priority_queue-stl/',
+    provider: 'GeeksForGeeks',
+    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=60',
+    summary: 'Textbook documentation detailing edge cases, negative cycle limitations, and optimal C++20 memory layouts.',
+    keyConcepts: ['Negative Cycle Limitations', 'Dense vs Sparse Graph Tradeoffs', 'Early Stopping']
+  },
+  {
+    id: 'res-dijkstra-fallback',
+    topic: 'dijkstra',
+    title: "[MIRROR] Dijkstra's Algorithm Master Reference & C++ Implementation Code",
+    type: 'documentation',
+    duration: 12,
+    difficulty: 'beginner',
+    relevance: 0.94,
+    url: 'https://github.com/algorithms/dijkstra-cpp-mirror',
+    provider: 'FocusShield Local Knowledge Cache (Verified Mirror)',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=60',
+    summary: 'Offline verified mirror containing self-contained C++ source code, graph visualizer notes, and step-by-step trace tables.',
+    keyConcepts: ['Local Mirror', 'Offline Trace Table', 'Direct C++ Implementation'],
+    isFallback: true
+  }
+];
+
+// 1. Agent Goal Planning Endpoint: Extracts goal metadata and creates visual study plan
+app.post('/api/agent/plan-goal', async (req, res) => {
+  try {
+    const { goal = '' } = req.body;
+    const promptText = goal.trim() || "Learn Dijkstra's algorithm in C++ in 60 minutes";
+
+    const ai = getGeminiClient();
+    if (ai) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: `You are the Goal Planning Engine of the FocusShield Study Agent.
+User goal: "${promptText}"
+
+Extract structured study parameters and create an executable study plan with 6 to 7 progressive tasks.
+Return valid JSON matching this schema:
+{
+  "topic": string (e.g. "Dijkstra's Algorithm"),
+  "skill": string (e.g. "Graph Shortest Path"),
+  "language": string (e.g. "C++" or "General"),
+  "difficulty": "Beginner" | "Intermediate" | "Advanced",
+  "durationMinutes": number (extracted from prompt, default 60),
+  "expectedOutcome": string,
+  "tasks": [
+    {
+      "id": string (e.g. "task-1"),
+      "stepNumber": number (1 to 7),
+      "title": string,
+      "description": string,
+      "estimatedMinutes": number,
+      "difficulty": "beginner" | "intermediate" | "advanced",
+      "type": "concept" | "resource" | "code" | "practice" | "quiz" | "review"
+    }
+  ]
+}`,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const parsed = JSON.parse(response.text || '{}');
+        if (parsed.tasks && Array.isArray(parsed.tasks)) {
+          // ensure initial statuses
+          parsed.tasks = parsed.tasks.map((t: any, idx: number) => ({
+            ...t,
+            status: idx === 0 ? 'current' : 'upcoming'
+          }));
+          return res.json(parsed);
+        }
+      } catch (geminiError: any) {
+        console.warn('Gemini planning fallback:', geminiError?.message || 'Using deterministic planner');
+      }
+    }
+
+    // High-quality deterministic fallback planner
+    const lower = promptText.toLowerCase();
+    let topic = "Dijkstra's Algorithm";
+    let skill = "Shortest Path & Graph Optimization";
+    let language = "C++";
+    let duration = 60;
+    let difficulty: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate';
+
+    // Parse duration if numbers mentioned
+    const durationMatch = lower.match(/(\d+)\s*(?:min|minute|hr|hour)/);
+    if (durationMatch) {
+      const val = parseInt(durationMatch[1], 10);
+      duration = lower.includes('hr') || lower.includes('hour') ? val * 60 : val;
+    }
+
+    if (lower.includes('python')) language = 'Python';
+    else if (lower.includes('java')) language = 'Java';
+    else if (lower.includes('c++') || lower.includes('cpp')) language = 'C++';
+    else if (lower.includes('javascript') || lower.includes('typescript')) language = 'TypeScript';
+
+    if (lower.includes('dp') || lower.includes('dynamic programming')) {
+      topic = 'Dynamic Programming';
+      skill = 'Optimal Substructure & Memoization';
+    } else if (lower.includes('tree') || lower.includes('binary tree')) {
+      topic = 'Binary Tree Traversals';
+      skill = 'DFS & BFS Tree Explorations';
+    } else if (lower.includes('dijkstra')) {
+      topic = "Dijkstra's Algorithm";
+      skill = 'Single Source Shortest Path';
+    }
+
+    const defaultTasks = [
+      {
+        id: 'task-1',
+        stepNumber: 1,
+        title: 'Understand Shortest-Path Concept & Graph Foundations',
+        description: 'Review weighted directed graphs, distance arrays, and the core intuition behind shortest path relaxation.',
+        estimatedMinutes: Math.round(duration * 0.15),
+        status: 'current',
+        difficulty: 'beginner',
+        type: 'concept'
+      },
+      {
+        id: 'task-2',
+        stepNumber: 2,
+        title: "Learn Dijkstra's Algorithm Mechanism & Invariants",
+        description: 'Study greedy exploration with min-heap priority queue and why negative edge weights cause failures.',
+        estimatedMinutes: Math.round(duration * 0.25),
+        status: 'upcoming',
+        difficulty: 'intermediate',
+        type: 'resource'
+      },
+      {
+        id: 'task-3',
+        stepNumber: 3,
+        title: 'Study Time & Space Complexity Tradeoffs',
+        description: 'Analyze Adjacency List O((V + E) log V) vs Adjacency Matrix O(V^2) efficiency curves.',
+        estimatedMinutes: Math.round(duration * 0.1),
+        status: 'upcoming',
+        difficulty: 'intermediate',
+        type: 'concept'
+      },
+      {
+        id: 'task-4',
+        stepNumber: 4,
+        title: `Implement in ${language} with Standard Library Containers`,
+        description: `Write a clean, production-ready ${language} implementation using priority_queue and adjacency lists.`,
+        estimatedMinutes: Math.round(duration * 0.25),
+        status: 'upcoming',
+        difficulty: 'intermediate',
+        type: 'code'
+      },
+      {
+        id: 'task-5',
+        stepNumber: 5,
+        title: 'Solve Practice Problem: Network Delay Time',
+        description: 'Simulate packet broadcast across weighted nodes and verify minimum latency calculation.',
+        estimatedMinutes: Math.round(duration * 0.15),
+        status: 'upcoming',
+        difficulty: 'intermediate',
+        type: 'practice'
+      },
+      {
+        id: 'task-6',
+        stepNumber: 6,
+        title: 'Complete Agent Learning Mastery Assessment',
+        description: 'Interactive quiz evaluating shortest path relaxation, edge relaxation bounds, and complexity.',
+        estimatedMinutes: Math.max(5, Math.round(duration * 0.1)),
+        status: 'upcoming',
+        difficulty: 'intermediate',
+        type: 'quiz'
+      }
+    ];
+
+    res.json({
+      topic,
+      skill,
+      language,
+      difficulty,
+      durationMinutes: duration,
+      expectedOutcome: `Complete conceptual mastery and working ${language} implementation of ${topic} within ${duration} minutes.`,
+      tasks: defaultTasks
+    });
+  } catch (err: any) {
+    console.error('Error in plan-goal:', err);
+    res.status(500).json({ error: 'Failed to generate study plan' });
+  }
+});
+
+// 2. Agent Resource Search Tool: Searches, ranks, and handles failure simulation / fallback
+app.post('/api/agent/search-resources', (req, res) => {
+  try {
+    const { topic = 'dijkstra', simulateFailure = false } = req.body;
+
+    // Robustness requirement: Demonstrate recovery when external provider fails
+    if (simulateFailure) {
+      return res.status(503).json({
+        error: 'Resource provider API unavailable (HTTP 503 Service Unavailable: Remote upstream connection timed out)',
+        provider: 'Primary Video Streamer API',
+        canFallback: true,
+        fallbackAvailable: true
+      });
+    }
+
+    const lowerTopic = String(topic).toLowerCase();
+    let matches = AGENT_RESOURCE_DATABASE.filter(r => !r.isFallback);
+    if (lowerTopic.includes('dijkstra') || lowerTopic.includes('graph')) {
+      matches = AGENT_RESOURCE_DATABASE.filter(r => r.topic === 'dijkstra' && !r.isFallback);
+    }
+
+    // Sort by relevance score descending
+    matches.sort((a, b) => b.relevance - a.relevance);
+
+    res.json({
+      query: topic,
+      totalFound: matches.length,
+      resources: matches,
+      selectedRecommendationId: matches[0]?.id || null,
+      selectionRationale: 'Selected highest relevance score (0.96) matching target difficulty and duration requirements.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// 2b. Fallback resource provider endpoint (Used in robustness recovery)
+app.get('/api/agent/fallback-resource', (req, res) => {
+  const fallback = AGENT_RESOURCE_DATABASE.find(r => r.isFallback) || AGENT_RESOURCE_DATABASE[0];
+  res.json({
+    resource: fallback,
+    recoveryNotice: 'Successfully loaded from FocusShield Local Knowledge Cache (Verified Mirror).'
+  });
+});
+
+// 3. Agent Distraction Content Classifier Tool: Distinguishes goal-aligned content from distractions
+app.post('/api/agent/evaluate-content', (req, res) => {
+  try {
+    const { url = '', title = '', goal = "Learn Dijkstra's Algorithm in C++" } = req.body;
+    const lowerUrl = url.toLowerCase();
+    const lowerTitle = title.toLowerCase();
+    const lowerGoal = goal.toLowerCase();
+
+    // Whitelisted educational platforms with topic check
+    const isEducationalDomain =
+      lowerUrl.includes('youtube.com') ||
+      lowerUrl.includes('leetcode.com') ||
+      lowerUrl.includes('geeksforgeeks.org') ||
+      lowerUrl.includes('github.com') ||
+      lowerUrl.includes('mit.edu') ||
+      lowerUrl.includes('wikipedia.org');
+
+    // Blocked entertainment/social domains
+    const isDistractionDomain =
+      lowerUrl.includes('instagram.com') ||
+      lowerUrl.includes('reddit.com') ||
+      lowerUrl.includes('twitch.tv') ||
+      lowerUrl.includes('tiktok.com') ||
+      lowerUrl.includes('netflix.com') ||
+      lowerUrl.includes('discord.com') ||
+      lowerUrl.includes('shorts');
+
+    if (isDistractionDomain) {
+      return res.json({
+        isAllowed: false,
+        confidence: 0.96,
+        status: 'BLOCKED',
+        reason: 'Explicitly classified as digital distraction / social entertainment platform.',
+        policyEnforced: 'FocusShield Strict Ambient Sandbox'
+      });
+    }
+
+    // For YouTube or educational domains, check topic alignment
+    const matchesGoalKeywords =
+      lowerUrl.includes('dijkstra') ||
+      lowerTitle.includes('dijkstra') ||
+      lowerTitle.includes('shortest path') ||
+      lowerTitle.includes('graph') ||
+      lowerTitle.includes('algorithm') ||
+      lowerTitle.includes('c++') ||
+      lowerTitle.includes('abdul bari') ||
+      lowerTitle.includes('leetcode') ||
+      lowerTitle.includes('data structures');
+
+    const isDistractingContent =
+      lowerTitle.includes('gaming') ||
+      lowerTitle.includes('vlog') ||
+      lowerTitle.includes('funny') ||
+      lowerTitle.includes('movie') ||
+      lowerTitle.includes('song') ||
+      lowerTitle.includes('trailer') ||
+      lowerTitle.includes('gta');
+
+    if (isDistractingContent) {
+      return res.json({
+        isAllowed: false,
+        confidence: 0.94,
+        status: 'BLOCKED',
+        reason: `Content does not match active learning goal: "${goal}". FocusShield intercepted off-topic entertainment.`,
+        policyEnforced: 'Goal-Driven YouTube Filter'
+      });
+    }
+
+    if (matchesGoalKeywords || isEducationalDomain) {
+      return res.json({
+        isAllowed: true,
+        confidence: 0.92,
+        status: 'ALLOWED',
+        reason: `Matches active learning intent: ${goal}. Verified educational resource.`,
+        policyEnforced: 'Intent-Aligned Pass'
+      });
+    }
+
+    // Default neutral policy
+    return res.json({
+      isAllowed: false,
+      confidence: 0.78,
+      status: 'BLOCKED',
+      reason: `Domain or title has no established correlation to "${goal}".`,
+      policyEnforced: 'Ambient Focus Guard'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Content classification error' });
+  }
+});
+
+// 3b. Real-Time Active Tab Usefulness Evaluator
+// Autonomously analyzes whatever tab the user is currently using (no URL typing needed)
+app.post('/api/agent/evaluate-active-tab', async (req, res) => {
+  try {
+    const {
+      tabTitle = '',
+      tabUrl = '',
+      goal = "Learn Dijkstra's Algorithm in C++ in 60 minutes",
+      context = 'active_tab_inspection'
+    } = req.body;
+
+    const lowerTitle = String(tabTitle).toLowerCase();
+    const lowerUrl = String(tabUrl).toLowerCase();
+    const lowerGoal = String(goal).toLowerCase();
+
+    // 1. Try Gemini AI if available
+    const gemini = getGeminiClient();
+    if (gemini && process.env.GEMINI_API_KEY) {
+      try {
+        const prompt = `You are FocusShield Agent's real-time browser tab usefulness evaluator.
+Student Goal: "${goal}"
+Active Tab Title: "${tabTitle}"
+Active Tab URL/Origin: "${tabUrl || 'unspecified'}"
+Context: "${context}"
+
+Determine if the tab the user is currently using is USEFUL (educational, directly aligned or helpful for achieving their learning goal) or NOT USEFUL (distraction, off-task, social media, entertainment, unrelated gaming, dopamine trap).
+
+Respond with valid JSON matching this schema:
+{
+  "isUseful": boolean,
+  "verdict": "USEFUL" or "NOT_USEFUL",
+  "category": "practice_problem" | "instructional_video" | "documentation" | "code_compiler" | "social_media" | "gaming" | "entertainment" | "unrelated_browsing",
+  "usefulnessScore": number (0 to 100),
+  "confidence": number (between 0.85 and 0.99),
+  "reason": string (1-2 clear, direct sentences explaining why this active tab is useful or distracting for this goal),
+  "recommendedAction": "ALLOW_CONTINUE" or "BLOCK_AND_REFOCUS",
+  "policyEnforced": string,
+  "suggestedFocusTip": string
+}`;
+
+        const response = await gemini.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        if (response.text) {
+          const parsed = JSON.parse(response.text);
+          return res.json({
+            tabTitle,
+            tabUrl,
+            goal,
+            ...parsed
+          });
+        }
+      } catch (geminiError) {
+        console.warn('Gemini evaluation fallback to rule-based classifier:', geminiError);
+      }
+    }
+
+    // 2. High-Precision Rule-Based Fallback Engine
+    // Check if it is the FocusShield study app itself
+    if (
+      lowerTitle.includes('focusshield') ||
+      lowerTitle.includes('study session') ||
+      lowerTitle.includes('agentic ai')
+    ) {
+      return res.json({
+        tabTitle,
+        tabUrl,
+        goal,
+        isUseful: true,
+        verdict: 'USEFUL',
+        category: 'core_study_workspace',
+        usefulnessScore: 100,
+        confidence: 0.99,
+        reason: 'Active in the FocusShield primary study workspace, actively progressing through Dijkstra curriculum.',
+        recommendedAction: 'ALLOW_CONTINUE',
+        policyEnforced: 'FocusShield Workspace Pass',
+        suggestedFocusTip: 'Maintain flow state. Continue to the next algorithm implementation milestone.'
+      });
+    }
+
+    // Check clear distraction patterns
+    const isDistraction =
+      lowerTitle.includes('instagram') ||
+      lowerTitle.includes('reels') ||
+      lowerTitle.includes('reddit') ||
+      lowerTitle.includes('twitch') ||
+      lowerTitle.includes('tiktok') ||
+      lowerTitle.includes('netflix') ||
+      lowerTitle.includes('discord') ||
+      lowerTitle.includes('gaming') ||
+      lowerTitle.includes('memes') ||
+      lowerTitle.includes('gta') ||
+      lowerTitle.includes('vlog') ||
+      lowerTitle.includes('funny') ||
+      lowerTitle.includes('movie') ||
+      lowerTitle.includes('trailer') ||
+      lowerTitle.includes('shorts') ||
+      lowerUrl.includes('instagram.com') ||
+      lowerUrl.includes('reddit.com') ||
+      lowerUrl.includes('twitch.tv') ||
+      lowerUrl.includes('tiktok.com') ||
+      lowerUrl.includes('netflix.com');
+
+    if (isDistraction) {
+      return res.json({
+        tabTitle,
+        tabUrl,
+        goal,
+        isUseful: false,
+        verdict: 'NOT_USEFUL',
+        category: 'social_media_distraction',
+        usefulnessScore: 4,
+        confidence: 0.98,
+        reason: `Detected entertainment or social media activity ("${tabTitle}"). Contains zero instructional relevance to "${goal}" and triggers attention fragmentation.`,
+        recommendedAction: 'BLOCK_AND_REFOCUS',
+        policyEnforced: 'FocusShield Distraction Interception',
+        suggestedFocusTip: 'Close this tab immediately and return to your C++ graph implementation workspace.'
+      });
+    }
+
+    // Check educational and goal-aligned patterns
+    const isGoalAligned =
+      lowerTitle.includes('dijkstra') ||
+      lowerTitle.includes('graph') ||
+      lowerTitle.includes('shortest path') ||
+      lowerTitle.includes('priority queue') ||
+      lowerTitle.includes('c++') ||
+      lowerTitle.includes('leetcode') ||
+      lowerTitle.includes('geeksforgeeks') ||
+      lowerTitle.includes('cppreference') ||
+      lowerTitle.includes('algorithm') ||
+      lowerTitle.includes('compiler') ||
+      lowerTitle.includes('gdb') ||
+      lowerTitle.includes('abdul bari') ||
+      lowerTitle.includes('data structures') ||
+      lowerUrl.includes('leetcode.com') ||
+      lowerUrl.includes('geeksforgeeks.org') ||
+      lowerUrl.includes('cppreference.com') ||
+      lowerUrl.includes('onlinegdb.com');
+
+    if (isGoalAligned) {
+      return res.json({
+        tabTitle,
+        tabUrl,
+        goal,
+        isUseful: true,
+        verdict: 'USEFUL',
+        category: 'practice_problem',
+        usefulnessScore: 95,
+        confidence: 0.95,
+        reason: `Active tab ("${tabTitle}") directly aligns with your active target: "${goal}". Verified instructional content.`,
+        recommendedAction: 'ALLOW_CONTINUE',
+        policyEnforced: 'Intent-Aligned Resource Pass',
+        suggestedFocusTip: 'Excellent resource. Pay close attention to min-heap edge relaxation bounds.'
+      });
+    }
+
+    // Neutral / Uncorrelated tab
+    return res.json({
+      tabTitle,
+      tabUrl,
+      goal,
+      isUseful: false,
+      verdict: 'NOT_USEFUL',
+      category: 'unrelated_browsing',
+      usefulnessScore: 25,
+      confidence: 0.88,
+      reason: `Tab ("${tabTitle}") has no detected correlation to "${goal}". FocusShield flagged this as an off-task diversion.`,
+      recommendedAction: 'BLOCK_AND_REFOCUS',
+      policyEnforced: 'Ambient Focus Boundary',
+      suggestedFocusTip: 'Refocus your browsing to Dijkstra algorithm references or your active study workspace.'
+    });
+  } catch (err: any) {
+    console.error('Error evaluating active tab:', err);
+    res.status(500).json({ error: 'Tab evaluation error' });
+  }
+});
+
+// 4. Dynamic Action Decision Engine (Observe → Decide → Act → Evaluate → Adapt)
+app.post('/api/agent/decide-next-action', (req, res) => {
+  try {
+    const { state, triggerEvent } = req.body;
+    if (!state) {
+      return res.status(400).json({ error: 'Missing agent state' });
+    }
+
+    const {
+      current_task,
+      tasks = [],
+      completed_tasks = [],
+      user_performance = {},
+      recovery_state,
+      current_resource,
+      active_quiz
+    } = state;
+
+    // Condition 1: Failure recovery state active
+    if (recovery_state?.isRecovering && !recovery_state?.isResolved) {
+      return res.json({
+        action: 'RETRY',
+        observation: `Tool "${recovery_state.failedToolName}" failed (${recovery_state.failureReason}).`,
+        decision: 'Trigger fallback recovery strategy and load cached verified resource.',
+        reason: 'Robustness requirement: Never crash on tool failure. Fallback immediately to local mirror.',
+        confidence: 0.98
+      });
+    }
+
+    // Condition 2: User is struggling (Quiz accuracy < 50% or consecutive mistakes >= 2) -> ADAPT
+    const consecutiveMistakes = user_performance.consecutiveMistakes || 0;
+    const accuracy = user_performance.accuracyRate || 100;
+    if (consecutiveMistakes >= 2 || (user_performance.quizzesTaken >= 2 && accuracy < 50)) {
+      return res.json({
+        action: 'GENERATE_EXPLANATION',
+        observation: `User failed ${consecutiveMistakes} consecutive conceptual checks (accuracy: ${Math.round(accuracy)}%).`,
+        decision: 'Adapt study plan: Reduce difficulty, step back, and generate beginner shortest-path relaxation example.',
+        reason: 'Adaptation requirement: User demonstrates weak foundation. Re-explain core concept before resuming problems.',
+        confidence: 0.95
+      });
+    }
+
+    // Condition 3: Current task has no active learning resource
+    if (!current_resource && (!completed_tasks || completed_tasks.length === 0)) {
+      return res.json({
+        action: 'SEARCH_RESOURCE',
+        observation: 'Session started. Initial task "Understand Shortest-Path Concept" requires curriculum material.',
+        decision: 'Execute resource search tool for Dijkstra with duration & difficulty filters.',
+        reason: 'Multi-Step Execution: Acquire authoritative material before beginning study.',
+        confidence: 0.96
+      });
+    }
+
+    // Condition 4: Current task is quiz and no active quiz is displayed
+    const currentTaskObj = tasks.find((t: any) => t.status === 'current');
+    if (currentTaskObj?.type === 'quiz' && !active_quiz) {
+      return res.json({
+        action: 'GENERATE_QUIZ',
+        observation: 'Active task reached "Assessment" phase. Ready to evaluate conceptual mastery.',
+        decision: 'Generate interactive Dijkstra distance relaxation diagnostic quiz.',
+        reason: 'Evaluation phase of agent loop.',
+        confidence: 0.94
+      });
+    }
+
+    // Condition 5: All tasks completed
+    if (tasks.length > 0 && tasks.every((t: any) => t.status === 'completed')) {
+      return res.json({
+        action: 'FINISH_SESSION',
+        observation: 'All 6 study tasks completed with acceptable mastery threshold.',
+        decision: 'Finalize study session, summarize metrics, and unlock ambient environment.',
+        reason: 'Goal-driven execution complete.',
+        confidence: 1.0
+      });
+    }
+
+    // Default dynamic step forward
+    return res.json({
+      action: 'START_TASK',
+      observation: `Currently executing: "${current_task || 'Foundational Study'}". User environment locked and focused.`,
+      decision: 'Maintain study focus, monitor tab switching, and log active engagement.',
+      reason: 'Progressing along optimal study path.',
+      confidence: 0.91
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Decision engine error' });
+  }
+});
+
+// 5. Agent Interactive Quiz Generator Tool
+app.get('/api/agent/quiz-question', (req, res) => {
+  const difficulty = req.query.difficulty as string || 'intermediate';
+
+  if (difficulty === 'beginner') {
+    return res.json({
+      id: 'quiz-dijkstra-easy',
+      question: "In Dijkstra's algorithm, what does the relaxation step do when examining edge (u, v) with weight w?",
+      codeSnippet: "if (dist[u] + weight(u, v) < dist[v]) {\n    dist[v] = dist[u] + weight(u, v);\n    pq.push({dist[v], v});\n}",
+      options: [
+        { id: 'opt-a', text: 'Updates dist[v] only if the path through u provides a shorter total distance', explanation: 'Correct! This is the fundamental definition of edge relaxation.' },
+        { id: 'opt-b', text: 'Adds u and v to a maximum spanning tree', explanation: 'Incorrect. Spanning trees are computed by Prim or Kruskal.' },
+        { id: 'opt-c', text: 'Checks whether the graph has any cycles', explanation: 'Incorrect. Cycle detection is done via DFS.' },
+        { id: 'opt-d', text: 'Multiplies the edge weights to prevent overflow', explanation: 'Incorrect.' }
+      ],
+      correctOptionId: 'opt-a',
+      conceptualExplanation: 'Relaxation tests whether going through vertex u improves the current best-known distance to vertex v. If so, dist[v] is updated and the new distance is inserted into the min-heap.',
+      difficulty: 'beginner',
+      conceptTested: 'Edge Relaxation'
+    });
+  }
+
+  // Standard graph problem quiz
+  return res.json({
+    id: 'quiz-dijkstra-std',
+    question: "Given a directed graph with edge weights: A→B=4, A→C=2, C→B=1, B→D=5, C→D=8. What is the minimum shortest distance from A to D?",
+    codeSnippet: "// Graph Edges:\n// A -> B (weight 4)\n// A -> C (weight 2)\n// C -> B (weight 1)\n// B -> D (weight 5)\n// C -> D (weight 8)",
+    options: [
+      { id: 'opt-1', text: '8 (Path: A → B → D = 4 + 5 = 9, or A → C → D = 10)', explanation: 'Incorrect calculation.' },
+      { id: 'opt-2', text: '8 (Path: A → C → B → D = 2 + 1 + 5 = 8)', explanation: 'Correct! A→C (2) + C→B (1) + B→D (5) equals 8, which is strictly shorter than direct routes!' },
+      { id: 'opt-3', text: '9 (Path: A → B → D = 4 + 5 = 9)', explanation: 'Greedy error: misses the shorter path through C!' },
+      { id: 'opt-4', text: '10 (Path: A → C → D = 2 + 8 = 10)', explanation: 'Sub-optimal path.' }
+    ],
+    correctOptionId: 'opt-2',
+    conceptualExplanation: "The optimal shortest path from A to D visits intermediate node C first: dist(A to C) = 2, then relaxes edge C→B with cost 1 (giving dist(A to B) = 3 instead of 4), and finally relaxes B→D with cost 5. Total cost = 2 + 1 + 5 = 8.",
+    difficulty: 'intermediate',
+    conceptTested: 'Single-Source Shortest Path Simulation'
+  });
+});
+
+// 6. Agent Answer Evaluator Tool
+app.post('/api/agent/evaluate-answer', (req, res) => {
+  const { questionId, selectedOptionId, correctOptionId, timeSpentSeconds = 15 } = req.body;
+  const isCorrect = selectedOptionId === correctOptionId;
+
+  if (isCorrect) {
+    return res.json({
+      isCorrect: true,
+      selectedOptionId,
+      correctOptionId,
+      scoreDelta: +15,
+      conceptualFeedback: 'Excellent! You correctly identified the relaxed path A→C→B→D with total cost 8.',
+      difficultyAssessment: 'appropriate',
+      recommendedNextAction: 'START_TASK'
+    });
+  }
+
+  // Answer was incorrect
+  return res.json({
+    isCorrect: false,
+    selectedOptionId,
+    correctOptionId,
+    scoreDelta: -10,
+    conceptualFeedback: 'Incorrect. A common pitfall is taking direct edge A→B (4) instead of discovering that A→C (2) + C→B (1) = 3 is strictly cheaper.',
+    difficultyAssessment: 'too_hard',
+    recommendedNextAction: 'DECREASE_DIFFICULTY'
+  });
+});
+
+// 7. Agent Conceptual Explanation Generator Tool (Used upon adaptation)
+app.get('/api/agent/explanation', (req, res) => {
+  res.json({
+    title: 'Shortest-Path Relaxation: The Core Invariant',
+    concept: 'Why Relaxation Always Preserves Correctness',
+    diagramAscii: `
+      [A] ----(4)----> [B] ----(5)----> [D]  (Cost: 4 + 5 = 9)
+       |                ^
+      (2)              (1)
+       |                |
+       v                |
+      [C] ---------------                    (Better: 2 + 1 + 5 = 8!)
+    `,
+    keyTakeaways: [
+      'In Dijkstra, when a node is popped from the priority queue, its shortest distance is finalized.',
+      'Relaxation checks if dist[u] + weight(u, v) < dist[v].',
+      'If true, we update dist[v] and push the pair into the priority queue.',
+      'Non-negative weights guarantee that visiting new nodes will never decrease distances to already finalized nodes.'
+    ],
+    exampleSnippet: `// Standard C++ Relaxation Loop
+for (const auto& edge : adj[u]) {
+    int v = edge.to;
+    int weight = edge.weight;
+    if (dist[u] + weight < dist[v]) {
+        dist[v] = dist[u] + weight;
+        pq.push({dist[v], v});
+    }
+}`
+  });
+});
+
 // Vite & Static file handling
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

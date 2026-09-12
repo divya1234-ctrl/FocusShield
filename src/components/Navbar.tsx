@@ -26,59 +26,61 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-slate-100 w-full max-w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
           {/* Logo & Title */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-white/20">
-              <ShieldCheck className="w-6 h-6 text-white" />
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 ring-1 ring-white/20 shrink-0">
+              <ShieldCheck className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
-                  FocusShield
+            <div className="min-w-0">
+              <div className="flex items-center space-x-1.5">
+                <span className="font-extrabold text-sm sm:text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-200 truncate">
+                  FocusShield Agent
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  AI Guard
+                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  AI Study Agent
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Mobile History &amp; Intent-Locked YouTube Study Engine
+              <p className="text-xs text-slate-400 hidden lg:block truncate">
+                Agentic AI Study-Execution System with Intent-Locked Environment Control
               </p>
             </div>
           </div>
 
           {/* Center: Live Focus Status / Countdown */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
             {focusRule && focusRule.isActive ? (
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 shadow-sm animate-pulse">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold max-w-[140px] sm:max-w-[200px] truncate">
+              <div className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 shadow-sm animate-pulse text-xs">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="font-semibold max-w-[70px] xs:max-w-[100px] sm:max-w-[180px] truncate hidden xs:inline">
                   {focusRule.targetTopic}
                 </span>
-                <span className="text-xs font-mono font-bold bg-emerald-950/80 px-2 py-0.5 rounded-md text-emerald-200 border border-emerald-500/30">
+                <span className="font-mono font-bold bg-emerald-950/80 px-1.5 sm:px-2 py-0.5 rounded-md text-emerald-200 border border-emerald-500/30 text-[11px] sm:text-xs">
                   {formatTime(focusRule.remainingSeconds)}
                 </span>
               </div>
             ) : (
               <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 text-xs">
                 <Hourglass className="w-3.5 h-3.5 text-slate-500" />
-                <span>No active intent lock</span>
+                <span>No active lock</span>
               </div>
             )}
 
             <button
               onClick={onOpenIntentModal}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-md shadow-indigo-500/25 transition-all transform active:scale-95"
+              className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-md shadow-indigo-500/25 transition-all transform active:scale-95 shrink-0"
+              title="Set or modify focus study intent"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{focusRule?.isActive ? 'Edit Focus Intent' : 'Set Focus Intent'}</span>
+              <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+              <span className="hidden sm:inline">{focusRule?.isActive ? 'Edit Focus Intent' : 'Set Focus Intent'}</span>
+              <span className="sm:hidden">{focusRule?.isActive ? 'Edit' : 'Intent'}</span>
             </button>
           </div>
 
           {/* Right: Metrics & View Mode Switcher */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             {/* Quick Metrics */}
             <div className="hidden lg:flex items-center space-x-4 border-r border-slate-800 pr-4">
               <div className="flex items-center space-x-1.5 text-xs text-slate-300">
@@ -94,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center p-0.5 bg-slate-800 rounded-lg border border-slate-700">
+            <div className="flex items-center p-0.5 bg-slate-800 rounded-lg border border-slate-700 shrink-0">
               <button
                 onClick={() => onToggleViewMode('desktop')}
                 title="Full Dashboard Mode"
@@ -104,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Monitor className="w-4 h-4" />
+                <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={() => onToggleViewMode('mobile_sim')}
@@ -115,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Smartphone className="w-4 h-4" />
+                <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>

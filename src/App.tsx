@@ -16,7 +16,8 @@ import {
   Zap,
   BookOpen,
   Globe,
-  Eye
+  Eye,
+  BrainCircuit
 } from 'lucide-react';
 import {
   AppItem,
@@ -42,6 +43,7 @@ import { MobileHistoryTracker } from './components/MobileHistoryTracker';
 import { MobilePhoneSimulator } from './components/MobilePhoneSimulator';
 import { TabGuardian } from './components/TabGuardian';
 import { UnauthorizedTabModal } from './components/UnauthorizedTabModal';
+import { FocusShieldAgentDashboard } from './components/agent/FocusShieldAgentDashboard';
 import { playSuccessChime, playShieldBlockedChime } from './utils/audio';
 
 export default function App() {
@@ -51,7 +53,7 @@ export default function App() {
   const [tabRules, setTabRules] = useState<MonitoredTabRule[]>(INITIAL_TAB_RULES);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>(INITIAL_HISTORY_EVENTS);
   const [dailyStats, setDailyStats] = useState<DailyUsageStat[]>(INITIAL_DAILY_STATS);
-  const [activeTab, setActiveTab] = useState<'youtube' | 'tabs' | 'apps' | 'history' | 'simulator'>('youtube');
+  const [activeTab, setActiveTab] = useState<'agent' | 'youtube' | 'tabs' | 'apps' | 'history' | 'simulator'>('agent');
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile_sim'>('desktop');
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
 
@@ -512,7 +514,7 @@ export default function App() {
   const productivityScore = 92;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white w-full max-w-full overflow-x-hidden">
       {/* Top Navigation */}
       <Navbar
         focusRule={focusRule}
@@ -524,16 +526,16 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-6 overflow-x-hidden">
         {/* If Mobile Simulator View is selected */}
         {viewMode === 'mobile_sim' ? (
-          <div className="flex flex-col items-center justify-center">
-            <div className="text-center max-w-md mb-2">
-              <h2 className="text-base font-bold text-white flex items-center justify-center gap-2">
-                <Smartphone className="w-5 h-5 text-indigo-400" />
+          <div className="flex flex-col items-center justify-center w-full max-w-full">
+            <div className="text-center max-w-md mb-2 px-2">
+              <h2 className="text-sm sm:text-base font-bold text-white flex items-center justify-center gap-2">
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
                 Live Interactive Smartphone Simulator
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400">
                 Interact with the mobile YouTube feed, tap blocked apps to test policy enforcement, and search DSA problems.
               </p>
             </div>
@@ -553,6 +555,21 @@ export default function App() {
             {/* Primary Tab Navigation */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setActiveTab('agent')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'agent'
+                      ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  <BrainCircuit className="w-4 h-4 text-cyan-400" />
+                  <span>FocusShield Agent</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/30 text-[10px] text-indigo-300 font-bold border border-indigo-500/40">
+                    Live System
+                  </span>
+                </button>
+
                 <button
                   onClick={() => setActiveTab('youtube')}
                   className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
@@ -622,6 +639,10 @@ export default function App() {
             </div>
 
             {/* Tab Views */}
+            {activeTab === 'agent' && (
+              <FocusShieldAgentDashboard />
+            )}
+
             {activeTab === 'youtube' && (
               <YouTubeFocusShield
                 videos={videos}

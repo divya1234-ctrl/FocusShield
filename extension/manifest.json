@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "FocusShield Study Sentinel & Tab Closer",
+  "version": "1.2.0",
+  "description": "Autonomously blocks distractions and off-task YouTube videos during Dijkstra study sessions.",
+  "permissions": [
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.instagram.com/*",
+        "*://*.reddit.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.netflix.com/*",
+        "*://*.twitter.com/*",
+        "*://*.x.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
