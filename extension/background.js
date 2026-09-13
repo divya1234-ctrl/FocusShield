@@ -1,4 +1,4 @@
-// FocusShield Background Service Worker - V1.2.0
+// FocusShield Background Service Worker - V1.3.0
 const BLOCKED_DOMAINS = [
   "instagram.com",
   "reddit.com",
@@ -10,22 +10,22 @@ const BLOCKED_DOMAINS = [
   "twitch.tv"
 ];
 
-console.log("[FocusShield] 🛡️ Sentinel active: Monitoring distractions and YouTube videos.");
+console.log("[FocusShield V1.3] 🛡️ Sentinel active: Monitoring distractions and YouTube study mode.");
 
 function isBlockedUrl(url) {
   if (!url) return { blocked: false };
   const lower = url.toLowerCase();
 
-  // 1. Check blocked social / entertainment domains
+  // 1. Social & entertainment domains
   for (const domain of BLOCKED_DOMAINS) {
     if (lower.includes(domain)) {
       return { blocked: true, reason: `Blocked domain: ${domain}` };
     }
   }
 
-  // 2. Instant block for YouTube Shorts (pure distraction)
+  // 2. YouTube Shorts (pure algorithmic distraction)
   if (lower.includes("youtube.com/shorts")) {
-    return { blocked: true, reason: "YouTube Shorts is blocked during study sessions." };
+    return { blocked: true, reason: "YouTube Shorts blocked during Dijkstra study session." };
   }
 
   return { blocked: false };
@@ -41,14 +41,14 @@ function handleTabCheck(tabId, url, title) {
   }
 }
 
-// 1. Intercept before navigation begins (works when clicking Google search results!)
+// 1. Intercept before navigation begins
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   if (details.frameId === 0) {
     handleTabCheck(details.tabId, details.url);
   }
 });
 
-// 2. Intercept on history state update (SPA navigation like YouTube & Twitter)
+// 2. Intercept on history state update (SPA navigation)
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
   if (details.frameId === 0) {
     handleTabCheck(details.tabId, details.url);
@@ -63,7 +63,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// 4. Listen for messages from content script (e.g. when off-task YouTube video detected)
+// 4. Handle direct close requests from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.action === "CLOSE_DISTRACTION_TAB" && sender.tab && sender.tab.id) {
     console.warn("[FocusShield] 🚨 Content script requested close for tab:", sender.tab.id, message.reason);
